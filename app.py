@@ -75,13 +75,45 @@ with st.sidebar:
 
     filter_files = st.file_uploader("Upload DtaSelect-filter.txt files", accept_multiple_files=True, type='.txt')
     baseline_aa_freq = COMPARISON_AA_FREQUENCIES[st.selectbox('Select baseline AA frequency', COMPARISON_AA_FREQUENCIES.keys())]
-    sites_to_compare = st.selectbox('Select sites to compare', ['n', 'c', 'both'])
+    sites_to_compare = st.selectbox('Select sites to compare', ['n', 'c', 'both'], index=2)
 
     run = st.button('Run', use_container_width=True, type='primary')
 
+st.subheader('Enzyme Site Frequencies Comparison')
+
+with st.expander('Help'):
+    st.markdown("""
+    
+    This tool compares the frequency of observed cleavage sites compared to the frequency of the expected cleavage
+    sites based on random chance, which is calculated from the product of the frequency of the two amino acids 
+    comprising the cleavage site. 
+    
+    The tool provides 3 options for sites to compare:
+    
+    - N-Terminus: Compares the frequency of the amino acid before the peptide to the first amino acid in the peptide
+    - C-Terminus: Compares the frequency of the last amino acid in the peptide to the amino acid after the peptide
+    - Both: Compares both the N-Terminus and C-Terminus sites
+    
+    The above options can be important to consider when analyzing enzyme cleavage sites. Some residues 
+    at the end of a peptide can improve/hurt the likelihood of detection which is be secondary to the enzymes activity. 
+    Since enzymatic cleavage occurs before, ionization, fragmentation, and detection, the observed enzymatic sites are
+    influenced by all the the later events. Even if a site is highly cleave-able, if the actual peptide
+    cannot be detected, the site will not be observed and the frequency will be lower than expected (or visa versa).
+    
+    Information on Columns:
+    
+    - Log2Fold Change: The log2 fold change of the observed frequency compared to the baseline frequency
+    - Observed Frequency: The frequency of the observed site
+    - Baseline Frequency: The frequency of the baseline site
+    - Observed Count: The number of observed sites
+    - Expected Count: The number of expected sites
+    - Normalized Observed Frequency: The observed frequency normalized to the maximum observed frequency
+    - Normalized Baseline Frequency: The baseline frequency normalized to the maximum baseline frequency
+    
+    """)
+
 if run:
 
-    st.subheader('Enzyme Site Frequencies Comparison')
 
     if not filter_files:
         st.write('No files uploaded')
@@ -116,6 +148,11 @@ if run:
     df['Expected Count'] = df['Baseline Frequency'] * total_sites
     df['Expected Count'] = df['Expected Count'].astype(int)
 
+    df['Observed Frequency'] = df['Observed Frequency'] * 100
+    df['Baseline Frequency'] = df['Baseline Frequency'] * 100
+    df['Normalized Observed Frequency'] = df['Observed Frequency'] / max(df['Observed Frequency'])
+    df['Normalized Baseline Frequency'] = df['Baseline Frequency'] / max(df['Baseline Frequency'])
+
     # sort df by index (aa1, aa2)
     df = df.sort_index()
 
@@ -137,11 +174,14 @@ if run:
     df[['AA1', 'AA2']] = pd.DataFrame(df.index.tolist(), index=df.index)
 
 
+
     # Create a heatmap of the log2fold changes
     @st.fragment()
     def plot_funct():
-        selected_column = st.selectbox('Select the column to plot:', ['Log2Fold Change', 'Observed Frequency', 'Baseline Frequency', 'Observed Count', 'Expected Count'])
-
+        col_options = df.columns.tolist()
+        col_options.remove('AA1')
+        col_options.remove('AA2')
+        selected_column = st.selectbox('Select the column to plot:', col_options)
 
         # Add a dropdown menu for column selection
 
